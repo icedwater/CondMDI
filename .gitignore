@@ -152,3 +152,6 @@ wandb/
 *.7z
 *.bzip
 *.bz2
+
+# numpy arrays
+*.np[yz]
