@@ -264,6 +264,8 @@ class Text2MotionDatasetV2(data.Dataset):
         self.std_scale_shift = std_scale_shift
         self.drop_redundant = drop_redundant
 
+        self.joints_num = opt.joints_num
+
         data_dict = {}
         id_list = []
         with cs.open(split_file, 'r') as f:
@@ -363,6 +365,8 @@ class Text2MotionDatasetV2(data.Dataset):
         if drop_redundant is None:
             drop_redundant = self.drop_redundant
 
+        joints_num = self.joints_num
+
         if traject_only:
             std = self.std[:4]
             mean = self.mean[:4]
@@ -410,6 +414,8 @@ class Text2MotionDatasetV2(data.Dataset):
         text_data = random.choice(text_list)
         # text_data = text_list[0] # for rebuttal experiments
         caption, tokens = text_data['caption'], text_data['tokens']
+
+        joints_num = self.joints_num
 
         if len(tokens) < self.opt.max_text_len:
             # pad with "unk"
@@ -950,6 +956,9 @@ class TextOnlyDataset(data.Dataset):
             traject_only = self.traject_only
         if drop_redundant is None:
             drop_redundant = self.drop_redundant
+
+        joints_num = self.joints_num
+        
         if traject_only:
             std = self.std[:4]
             mean = self.mean[:4]
