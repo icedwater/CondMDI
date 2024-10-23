@@ -1,10 +1,10 @@
 from os.path import join as pjoin
 
-from common.skeleton import Skeleton
+from data_loaders.custom.common.skeleton import Skeleton
 import numpy as np
 import os
-from common.quaternion import *
-from utils.paramUtil import *
+from data_loaders.custom.common.quaternion import *
+from data_loaders.custom.utils.paramUtil import *
 
 import torch
 from tqdm import tqdm

@@ -9,12 +9,12 @@ from tqdm import tqdm
 import spacy
 
 from torch.utils.data._utils.collate import default_collate
-from utils.word_vectorizer import WordVectorizer
-from utils.get_opt import get_opt
-from common.quaternion import qinv, qrot
-from scripts.motion_process import recover_from_ric, extract_features
-from utils.paramUtil import *
-from common.skeleton import Skeleton
+from data_loaders.custom.utils.word_vectorizer import WordVectorizer
+from data_loaders.custom.utils.get_opt import get_opt
+from data_loaders.custom.common.quaternion import qinv, qrot
+from data_loaders.custom.scripts.motion_process import recover_from_ric, extract_features
+from data_loaders.custom.utils.paramUtil import *
+from data_loaders.custom.common.skeleton import Skeleton
 
 
 def collate_fn(batch):
@@ -1251,7 +1251,7 @@ class HumanML3D(data.Dataset):
         #                     glob_rot=None,
         #                     get_rotations_back=False)
 
-        # from utils.plot_script import plot_3d_motion
+        # from data_loaders.custom.utils.plot_script import plot_3d_motion
         # plot_3d_motion("./test_positions_1.mp4", self.kinematic_chain, motion[2].permute(2,0,1).detach().cpu().numpy(), 'title', 'humanml', fps=20)
         # plot_3d_motion("./test_positions_1_after.mp4", self.kinematic_chain, sample_after[2].permute(2,0,1).detach().cpu().numpy(), 'title', 'humanml', fps=20)
 
@@ -1281,7 +1281,7 @@ class HumanML3D(data.Dataset):
             sample_rel = torch.from_numpy(sample_rel).unsqueeze(0).float()
             sample_rel = torch.cat([sample_rel, sample_rel[0:1, -1:, :].clone()], dim=1) # [1, 196, 263]
             # Compute absolute root information instead of relative
-            from scripts.motion_process import recover_root_rot_pos
+            from data_loaders.custom.scripts.motion_process import recover_root_rot_pos
             r_rot_quat, r_pos, rot_ang = recover_root_rot_pos(sample_rel[None], abs_3d=False, return_rot_ang=True)
             sample_abs = sample_rel[None].clone()
             sample_abs[..., 0] = rot_ang
@@ -1361,7 +1361,7 @@ def abs3d_to_rel(sample_abs, dataset, model):
                            get_rotations_back=False)
 
     # sample now shape [32, 22, 3, 196].
-    # from utils.plot_script import plot_3d_motion
+    # from data_loaders.custom.utils.plot_script import plot_3d_motion
     # plot_3d_motion("./test_positions_1.mp4", dataset.kinematic_chain, sample[4].permute(2,0,1).detach().cpu().numpy(), 'title', 'humanml', fps=20)
 
     # Now convert skeleton back to sample with relative representation
@@ -1401,7 +1401,7 @@ def rel_to_abs3d(sample_rel, dataset, model):
                            get_rotations_back=False)
 
     # sample now shape [32, 22, 3, 196].
-    # from utils.plot_script import plot_3d_motion
+    # from data_loaders.custom.utils.plot_script import plot_3d_motion
     # plot_3d_motion("./test_positions_1.mp4", dataset.kinematic_chain, sample[4].permute(2,0,1).detach().cpu().numpy(), 'title', 'humanml', fps=20)
 
     # Now convert skeleton back to sample with absolute representation
