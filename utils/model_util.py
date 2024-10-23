@@ -74,6 +74,11 @@ def get_model_args(args: FullModelOptions, data: DataLoader):
         njoints = 764
         nfeats = 1
         cond_mode = "no_cond"
+    elif args.dataset == "custom": ## FIXME: find out how to use proper values for custom here
+        data_rep = "hml_vec"
+        njoints = 999
+        nfeats = 1
+        cond_mode = "text"
 
     # Only produce trajectory (4 values: rot, x, z, y)
     if args.traj_only:
