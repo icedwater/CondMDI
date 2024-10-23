@@ -43,12 +43,9 @@ def get_model_args(args: FullModelOptions, data: DataLoader):
     action_emb = 'tensor'
     if args.unconstrained:
         cond_mode = 'no_cond'
-    elif args.dataset == 'amass':
-        cond_mode = 'no_cond'
-    elif args.dataset in ['kit', 'humanml']:
-        cond_mode = 'text'
     else:
-        cond_mode = 'action'
+        cond_mode = "action"
+
     if hasattr(data.dataset, 'num_actions'):
         num_actions = data.dataset.num_actions
     else:
@@ -66,14 +63,17 @@ def get_model_args(args: FullModelOptions, data: DataLoader):
             njoints = 67 # 4 + 21 * 3
         else:
             njoints = 263
+        cond_mode = "text"
     elif args.dataset == 'kit':
         data_rep = 'hml_vec'
         njoints = 251
         nfeats = 1
+        cond_mode = "text"
     elif args.dataset == 'amass':
         data_rep = 'hml_vec' # FIXME: find what is the correct data rep
         njoints = 764
         nfeats = 1
+        cond_mode = "no_cond"
 
     # Only produce trajectory (4 values: rot, x, z, y)
     if args.traj_only:
