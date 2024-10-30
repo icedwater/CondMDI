@@ -1,4 +1,4 @@
-# Training the Model on Custom Rigs
+# Working with Custom Rigs
 
 The [Flexible Motion In-Betweening][condmdi] model is trained on the [HumanML3D dataset][hml3d_fork],
 originally by [Eric Guo][hml3d_orig], which is a combination of various motion-capture sequences, all
@@ -27,7 +27,7 @@ This is the original workflow to obtain the HumanML3D dataset, summarized from t
 [hml3d_fork]:   https://github.com/icedwater/HumanML3D
 [hml3d_orig]:   https://github.com/EricGuo5513/HumanML3D
 
-## Making a new workflow for different datasets:
+## Preparing a custom dataset for training
 
 Make sure a corresponding set of `$DATASET/joints` and `$DATASET/vecs` is present.
 The dimensions of each sequence nd-array in `joints` should be F x J x 3, F is the
@@ -88,9 +88,13 @@ Here the heavy lifting is done (...)
 ## Output
 
 
--------- working --------
+## Using the trained custom model for inference
 
-## Notes to explore
+```bash
+python -m sample.conditional_synthesis --dataset="custom" ...
+```
+
+# Working Notes to Explore
 
 - can the existing scripts convert arbitrary J-joint rigs to the correct form?
 - will need to update momask joints2bvh: convert() to use nonstandard rig as well
