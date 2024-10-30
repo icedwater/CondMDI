@@ -57,35 +57,64 @@ This can be generated separately, but is done by step 3 in the original workflow
 
 - How to recalculate `mean` and `std` from the original? 
 
-To train on a custom rig, please make the following changes:
+This is a summary of the steps to train on a custom rig called "myrig":
 
-- create a new data_loaders class, e.g. custom
+1. Copy the `data_loaders/custom` directory to `data_loaders/myrig`.
+2. Update the dataset info for `myrig` in `data_loaders/myrig/data/dataset.py`.
+3. Update `data_loaders/get_data.py`.
+4. Update `utils/model_util.py`.
+  - create_model_and_diffusion is here: assumes unet, loads data
+  - add class name and specs to get_model_args
+- model/mdm_unet.py:
+  - in MDM_UNET class:
+    - add class name and added_channels to __init__ part
+    - add class name and parameters to encode_text()
+    - add class name to assertions in forward()
+    - add class name and njoints to forward_core()
+- utils/get_opt:
+  - create custom dataset_name in get_opt: allow for new settings
 - add custom to main() in sample.conditional_synthesis; assertions fail otherwise
-- data_loaders/custom/data/dataset.py:
+- scripts/motion_process
+  - update coords (upper legs, feet, face vectors, hips) and joints_num
+
+-- train_condmdi::main()
+  - train_args(base_cls=card.motion_abs_unet_adagn_xl) <-- overwrite card here? or just leave it
+    - card inherits configs/data/dataset name ("humanml")
+
+The details of each step are highlighted below.
+
+### Create a new data_loader class called `myrig`
+
+Copy the `data_loaders/custom` directory to a new directory, `data_loaders/myrig`.
+
+### Update dataset info for `myrig` in `data_loaders/myrig/data/dataset.py`
+
+This file contains the specific settings for this rig.
+
+  - create new subclass from data.Dataset here with specific settings
+    - /dataset/humanml_opt.txt is loaded as `opt` and `self.opt` within subclass
+  - import necessary dependencies (ignore t2m?)
+  - Text2MotionDatasetV2 and TextOnlyDataset depend on `--joints_num`, include that
   - train t2m for custom rig here
     - min_motion_len = 40 for t2m, else 24 (sequences below 24/40 frames are skipped)
-- data_loaders/get_data.py:   
-  - update the get_dataset_class and get_dataset
-    - dataset name should be added to the range of valid classes
-  - update get_collate_fn
-    - [ ] need to check how collate function applies here
-- utils/parser_util:
-  - update TrainingOptions with the desired values
-
-
-### Create a new data_loader class
-
-Here the heavy lifting is done (...)
+  - update the feet and facing joints in `motion_to_rel_data` and `motion_to_abs_data`
+    - start and end joints of left foot and right foot
+    - facing joints are Z-shape: right hip, left hip, right shoulder, left shoulder
+  - update the njoints in `sample_to_motion`, `abs3d_to_rel`, and `rel_to_abs3d`
+    - 22 is the default value for the HumanML3D dataset.
 
 ### Update data_loaders/get_data.py
+
+  - add `myrig` to the list of valid classes in `get_dataset_class` and `get_dataset`
+  - update `get_collate_fn()`; how does collate function apply here? need to make own?
+  - get_model_args() should have the correct njoints
+  - data_rep needs to be updated
 
 (...)
 
 - get_dataset_class
 - get_dataset
 - get_collate_fn
-
-## Output
 
 
 ## Using the trained custom model for inference
