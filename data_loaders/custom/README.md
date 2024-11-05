@@ -123,6 +123,10 @@ This file contains the specific settings for this rig.
 python -m sample.conditional_synthesis --dataset="custom" ...
 ```
 
+----
+> end of document
+----
+
 # Working Notes to Explore
 
 - can the existing scripts convert arbitrary J-joint rigs to the correct form?
