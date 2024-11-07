@@ -131,6 +131,7 @@ dmypy.json
 .pyre/
 
 # experiments
+working/
 save/
 dataset/
 kit/
