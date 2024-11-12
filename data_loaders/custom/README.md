@@ -69,8 +69,7 @@ This is a summary of the steps to train on a custom rig called "myrig":
 2. Update the dataset info for `myrig` in `data_loaders/myrig/data/dataset.py`.
 3. Update `data_loaders/get_data.py`.
 4. Update `utils/model_util.py`.
-  - create_model_and_diffusion is here: assumes unet, loads data
-  - add class name and specs to get_model_args
+5. Update `utils/paramUtil.py`.
 - model/mdm_unet.py:
   - in MDM_UNET class:
     - add class name and added_channels to __init__ part
@@ -80,8 +79,11 @@ This is a summary of the steps to train on a custom rig called "myrig":
 - utils/get_opt:
   - create custom dataset_name in get_opt: allow for new settings
 - add custom to main() in sample.conditional_synthesis; assertions fail otherwise
-- scripts/motion_process
-  - update coords (upper legs, feet, face vectors, hips) and joints_num
+- `scripts/motion_process.py`
+  - update coords of lower leg joints, feet, facing vectors, upper legs and joints_num
+    - l_idx1, l_idx2 are joints below the hip on the same leg (5 and 8 for t2m)
+    - fid_r, fid_l are joint pairs at the end of the leg ([8, 11] and [7, 10] for t2m)
+    - face_joint_indx is a Z formed from right hip, left hip, right upper arm, left upper arm ([2, 1, 17, 16] for t2m)
 
 -- train_condmdi::main()
   - train_args(base_cls=card.motion_abs_unet_adagn_xl) <-- overwrite card here? or just leave it
@@ -109,12 +111,56 @@ This file contains the specific settings for this rig.
   - update the njoints in `sample_to_motion`, `abs3d_to_rel`, and `rel_to_abs3d`
     - 22 is the default value for the HumanML3D dataset.
 
-### Update data_loaders/get_data.py
+### Update `data_loaders/get_data.py`
 
-  - add `myrig` to the list of valid classes in `get_dataset_class` and `get_dataset`
-  - update `get_collate_fn()`; how does collate function apply here? need to make own?
-  - get_model_args() should have the correct njoints
-  - data_rep needs to be updated
+This file contains the list of classes which can be used to create the model and the diffusion,
+both of which are used during training and inference. So we need to add `myrig` to the lists in
+both `get_dataset_class` and `get_dataset`.
+
+### Update `utils/model_util.py`
+
+Both training and inference require the `create_model_and_diffusion` function, so updating this
+will help both sides of the process. Since we are just reusing the UNET architecture which they
+built for the HumanML3D data, we don't need to change anything here.
+
+However, it depends on `get_model_args` which requires the dataset name and number of `njoints`
+corresponding to 12*J - 1 where J is the actual number of joints in the rig, as detailed in the
+appendix of [the paper][condpaper].
+
+For example, with `humanml`, since the rig has 22 joints, `njoints` is set to 263.
+
+
+### Update `utils/paramUtil.py`
+
+  - create a `kinematic_chain` and `raw_offset` corresponding to `myrig`, for example:
+       ```
+          0
+          |
+       5--1--3
+       |  |  |
+       6  2  4
+       ```
+
+    - `myrig_kinematic_chain`: a list of joint chains, here: [[0, 1, 2], [1, 3, 4], [1, 5, 6]].
+       Each sublist represents a single chain of joints (see above for explanation.)
+    - `myrig_raw_offset`: numpy array of relative displacement of each node from its parent, in
+      `[x,y,z]` order. In the above example, 0 is at the top, 3 and 5 are on the right and left
+       of 1, and nodes 1, 2, 4, 6 are each below their parent. This gives us: 
+            ```
+            myrig_raw_offset = np.array(
+              [
+                [ 0, 0, 0],
+                [ 0,-1, 0],
+                [ 0,-1, 0],
+                [ 1, 0, 0],
+                [ 0,-1, 0],
+                [-1, 0, 0],
+                [ 0,-1, 0]
+              ])
+            ```
+
+Include the above structures in `paramUtil.py` for the [HumanML3D][hml3d_fork] scripts, so that
+the custom `myrig` can be preprocessed with the `build_vectors.py`.
 
 (...)
 
@@ -125,10 +171,10 @@ This file contains the specific settings for this rig.
 
 ## Using the trained custom model for inference
 
-Currently, we only work with conditional synthesis. Add the rig to `sample/conditional_synthesis.py`.
+Currently, we only use conditional synthesis. Add `myrig` to `sample/conditional_synthesis.py`.
 
-Make sure to update `args.dataset` to check for `myrig`. We can retain `model.data_rep` as `hml_vec`,
-since this just reshapes the input without further manipulation.
+Make sure that `args.dataset` checks for `myrig`. We can keep `hml_vec` for `model.data_rep` as
+this just reshapes the input without further manipulation.
 
 ```bash
 python -m sample.conditional_synthesis --dataset="myrig" ...
