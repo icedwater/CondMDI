@@ -27,6 +27,7 @@ This is the original workflow to obtain the HumanML3D dataset, summarized from t
 [hml3d_fork]:   https://github.com/icedwater/HumanML3D
 [hml3d_orig]:   https://github.com/EricGuo5513/HumanML3D
 
+
 ## Preparing a custom dataset for training
 
 Make sure a corresponding set of `$DATASET/joints` and `$DATASET/vecs` is present.
@@ -59,6 +60,7 @@ Finally, we can compute the mean and variance arrays using `cal_mean_variance.py
 adopted from the notebook of the same name.
 
 [condpaper]:    https://arxiv.org/html/2405.11126v2#A1
+
 
 
 ## Training with the custom dataset
@@ -95,6 +97,7 @@ The details of each step are highlighted below.
 
 Copy the `data_loaders/custom` directory to a new directory, `data_loaders/myrig`.
 
+
 ### Update dataset info for `myrig` in `data_loaders/myrig/data/dataset.py`
 
 This file contains the specific settings for this rig.
@@ -111,11 +114,13 @@ This file contains the specific settings for this rig.
   - update the njoints in `sample_to_motion`, `abs3d_to_rel`, and `rel_to_abs3d`
     - 22 is the default value for the HumanML3D dataset.
 
+
 ### Update `data_loaders/get_data.py`
 
 This file contains the list of classes which can be used to create the model and the diffusion,
 both of which are used during training and inference. So we need to add `myrig` to the lists in
 both `get_dataset_class` and `get_dataset`.
+
 
 ### Update `utils/model_util.py`
 
