@@ -61,6 +61,9 @@ adopted from the notebook of the same name.
 
 [condpaper]:    https://arxiv.org/html/2405.11126v2#A1
 
+Before training starts, `$DATASET` should have sub-directories `joints` and `vecs`
+containing the raw and preprocessed sequences, and a corresponding `texts` holding
+the descriptions of those actions.
 
 
 ## Training with the custom dataset
@@ -72,15 +75,21 @@ This is a summary of the steps to train on a custom rig called "myrig":
 3. Update `data_loaders/get_data.py`.
 4. Update `utils/model_util.py`.
 5. Update `utils/paramUtil.py`.
-- model/mdm_unet.py:
-  - in MDM_UNET class:
-    - add class name and added_channels to __init__ part
-    - add class name and parameters to encode_text()
-    - add class name to assertions in forward()
-    - add class name and njoints to forward_core()
-- utils/get_opt:
-  - create custom dataset_name in get_opt: allow for new settings
-- add custom to main() in sample.conditional_synthesis; assertions fail otherwise
+6. Update `model/mdm_unet.py`.
+7. Update `utils/get_opt`.
+8. Now the training can be performed, e.g. to train for 1 million steps with a checkpoint every
+   200K steps, run the following command:
+
+```bash
+python -m train.train_condmdi --dataset myrig --save_interval 200_000 --num_steps 1_000_000 --device 0 --keyframe_conditioned
+```
+
+
+## Doing inference with the custom dataset
+
+In this case we are only handling conditional synthesis.
+
+1. Update `sample/conditional_synthesis.py`.
 - `scripts/motion_process.py`
   - update coords of lower leg joints, feet, facing vectors, upper legs and joints_num
     - l_idx1, l_idx2 are joints below the hip on the same leg (5 and 8 for t2m)
@@ -167,6 +176,33 @@ For example, with `humanml`, since the rig has 22 joints, `njoints` is set to 26
 Include the above structures in `paramUtil.py` for the [HumanML3D][hml3d_fork] scripts, so that
 the custom `myrig` can be preprocessed with the `build_vectors.py`.
 
+
+### Update `model/mdm_unet.py`
+
+Here, we have to manually add the details of `myrig` into the `MDM_UNET` class in a few places.
+
+Since we want keyframe conditioning, add `myrig` in the if/elif block in the constructor as one
+of the possible values for `self.dataset`. Set the value of `added_channels` (12*J - 1) for the
+rig.
+
+Since we want to use our text as well, add `myrig` to the `self.dataset` list in `encode_text`.
+It is not yet clear how the maximum token length affects training, but we reuse the values from
+the previous classes.
+
+In `forward()` an `assert` is used to limit the rig types that can use this model. Add `myrig`.
+
+Then make sure in `forward_core()` that the correct shape for `myrig` is used by adding `myrig`
+and the corresponding number of `njoints` to the if/elif block for keyframe conditioning.
+
+
+### Update `utils/get_opt.py`
+
+The `get_opt()` function is used to read in training arguments from `./dataset/humanml_opt.txt`
+which we can reuse. Note that `dataset_name` is set to `t2m` here and `max_text_len` is 20. The
+`data_root` and `data_dir` options should be pointing to the trained vector and text data. Make
+sure that `joints_num` and `dim_pose` are correctly defined. `dim_pose` should be (12*J - 1) as
+with earlier values of `njoints`.
+
 (...)
 
 - get_dataset_class
@@ -177,9 +213,18 @@ the custom `myrig` can be preprocessed with the `build_vectors.py`.
 ## Using the trained custom model for inference
 
 Currently, we only use conditional synthesis. Add `myrig` to `sample/conditional_synthesis.py`.
+There is an `assert` in `main()` which tests for the model name and a place to specify `fps` or
+`max_frames` for `myrig`.
 
 Make sure that `args.dataset` checks for `myrig`. We can keep `hml_vec` for `model.data_rep` as
-this just reshapes the input without further manipulation.
+this just reshapes the input without further manipulation. However, further down in `main()` we
+need to give the right number of `n_joints` for `myrig`.
+
+If we want to generate `mp4` videos of the output as well, we can add `myrig` to the list where
+we check `args.dataset` and run `plot_conditional_samples`. However, this is not needed for the
+actual inference to run.
+
+Once all this is done, we can run the conditional synthesis as shown below:
 
 ```bash
 python -m sample.conditional_synthesis --dataset="myrig" ...
