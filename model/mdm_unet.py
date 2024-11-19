@@ -742,7 +742,7 @@ class MDM_UNET(nn.Module):
         # raw_text - list (batch_size length) of strings with input text prompts
         device = next(self.parameters()).device
         max_text_len = 20 if self.dataset in [
-            'humanml', 'kit'
+            'humanml', 'kit', 'custom'                    ## FIXME: need to update custom info here
         ] else None  # Specific hardcoding for humanml dataset
         if max_text_len is not None:
             default_context_length = 77
@@ -834,7 +834,12 @@ class MDM_UNET(nn.Module):
                 x = tmp
         # just reshape the output nothing else
         if self.keyframe_conditioned:
-            njoints = 263 if self.dataset in ['humanml', "custom"] else 764     ## FIXME: update custom njoints here
+            if self.dataset == "humanml":
+                njoints = 263
+            elif self.dataset == "custom":
+                njoints = 263 # FIXME: set to (27 * 12 - 1) once input processing is corrected
+            else:
+                njoints = 764
         x = x.reshape(nframes, bs, njoints, nfeats)
 
         # NOTE: TODO: move the following to gaussian_diffusion.py
