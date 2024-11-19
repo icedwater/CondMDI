@@ -104,7 +104,7 @@ The details of each step are highlighted below.
 
 ### Create a new data_loader class called `myrig`
 
-Copy the `data_loaders/custom` directory to a new directory, `data_loaders/myrig`.
+Copy the `data_loaders/custom` directory to a new directory and call it `data_loaders/myrig`.
 
 
 ### Update dataset info for `myrig` in `data_loaders/myrig/data/dataset.py`
@@ -130,6 +130,9 @@ This file contains the list of classes which can be used to create the model and
 both of which are used during training and inference. So we need to add `myrig` to the lists in
 both `get_dataset_class` and `get_dataset`.
 
+This means a new class called `myrig` needs to be built based on the default `HumanML3D` class.
+We can use `CustomRig` as a template. Once that is done, import it in `get_dataset_class`.
+
 
 ### Update `utils/model_util.py`
 
@@ -138,7 +141,7 @@ will help both sides of the process. Since we are just reusing the UNET architec
 built for the HumanML3D data, we don't need to change anything here.
 
 However, it depends on `get_model_args` which requires the dataset name and number of `njoints`
-corresponding to 12*J - 1 where J is the actual number of joints in the rig, as detailed in the
+corresponding to 12\*J - 1, where J is the actual number of joints in the rig as defined in the
 appendix of [the paper][condpaper].
 
 For example, with `humanml`, since the rig has 22 joints, `njoints` is set to 263.
@@ -182,8 +185,8 @@ the custom `myrig` can be preprocessed with the `build_vectors.py`.
 Here, we have to manually add the details of `myrig` into the `MDM_UNET` class in a few places.
 
 Since we want keyframe conditioning, add `myrig` in the if/elif block in the constructor as one
-of the possible values for `self.dataset`. Set the value of `added_channels` (12*J - 1) for the
-rig.
+of the possible values for `self.dataset`. Set the value of `added_channels` to (12\*J - 1) for
+the rig to be processed properly.
 
 Since we want to use our text as well, add `myrig` to the `self.dataset` list in `encode_text`.
 It is not yet clear how the maximum token length affects training, but we reuse the values from
@@ -200,8 +203,8 @@ and the corresponding number of `njoints` to the if/elif block for keyframe cond
 The `get_opt()` function is used to read in training arguments from `./dataset/humanml_opt.txt`
 which we can reuse. Note that `dataset_name` is set to `t2m` here and `max_text_len` is 20. The
 `data_root` and `data_dir` options should be pointing to the trained vector and text data. Make
-sure that `joints_num` and `dim_pose` are correctly defined. `dim_pose` should be (12*J - 1) as
-with earlier values of `njoints`.
+sure that `joints_num` and `dim_pose` are correctly defined. `dim_pose` should be computed from
+the number of joints J to be (12\*J - 1). J is now read from `humanml_opt.txt`.
 
 (...)
 
@@ -227,8 +230,28 @@ actual inference to run.
 Once all this is done, we can run the conditional synthesis as shown below:
 
 ```bash
-python -m sample.conditional_synthesis --dataset="myrig" ...
+python -m sample.conditional_synthesis \
+       --dataset="myrig" --model_path "./save/path/modelx.pt" --edit_mode benchmark_sparse \
+       --transition_length 100 --n_keyframes 3 --num_repetitions 10 --seed 199 \
+       --text_prompt "a man walks across the room, trips and stumbles, then squats down"
 ```
+
+where `model_path` is the trained model checkpoint for this synthesis, `transition_length`
+is the gap between each of the `n_keyframes` taken from a random sequence identified using
+the `seed` value we set (here, 199) and `num_repetitions` is the number of trial sequences
+to generate using the `text_prompt` provided.
+
+To vary the strength of the reference action vs the text prompt, experiment with the value
+of `transition_length` and maybe consider setting `keyframe_guidance_param` (default value
+is 1) to above 2.5 as suggested [in this bug thread][sparse].
+
+[sparse]: https://github.com/setarehc/diffusion-motion-inbetweening/issues/5#issuecomment-2197243178
+
+
+## Producing Output
+
+- can the existing scripts convert arbitrary J-joint rigs to the correct form? (no, need to fix)
+- will need to update momask joints2bvh: convert() to use nonstandard rig as well
 
 ----
 > end of document
@@ -236,29 +259,20 @@ python -m sample.conditional_synthesis --dataset="myrig" ...
 
 # Working Notes to Explore
 
-- can the existing scripts convert arbitrary J-joint rigs to the correct form?
-- will need to update momask joints2bvh: convert() to use nonstandard rig as well
-- where is max_motion_length (=224?) set and what does it control
-- what is the Pointer? (max_length = 20? in reset_max_len: self.pointer = np.searchsorted(self.length_arr, length))
-- explain create_model_and_diffusion
-- where is "lantent dim"?
-- what happens in rot2xyz.smpl_model.eval() and is it necessary?
-
 ## Current training output
 
 - creating data loader...
   - data <== get_dataset_loader(data_conf)
   - data_conf <== DatasetConfig(dataset="humanml", batch_size=64, num_frames=60*, abs_3d=False, traj_only=False, use_random_proj=False, random_proj_scale=10.0, augment_type="none", std_scale_shift=(1.0, 0.0), drop_redundant=False)
 
-- ././dataset/humanml_opt.txt
-- WARNING: max_motion_length is set to 224
-- Loading dataset t2m ... / mode = train
-- t2m dataset aug: none std_scale_shift: (1.0, 0.0) drop redundant information: False (...23384?)
-- Pointer Pointing at 0
+- text-to-motion part
+  - Loading dataset t2m ... / mode = train
+  - t2m dataset aug: none std_scale_shift: (1.0, 0.0) drop redundant information: False (...23384?)
+    - Pointer Pointing at 0 (from inside reset_max_len)
 - creating model and diffusion...
   - model, diffusion = cmd(args, data)
-    - xxx
-  - model.rot2xyz.smpl_model.eval() <--- what happens here?
+    - by default unets are used in training
+    - diffusion = create_gaussian_diffusion(args)
 - using UNET with lantent dim: 512 and mults: (2, 2, 2, 2)
 - dims: [263, 1024, 1024, 1024, 1024] mults: (2, 2, 2, 2)
 - [ models/temporal ] Channel dimensions: [(263, 1024), (1024, 1024), (1024, 1024), (1024, 1024)]
@@ -266,8 +280,6 @@ python -m sample.conditional_synthesis --dataset="myrig" ...
 - Loading CLIP...
 - Total params: 235.12M (doesn't seem to change)
   - sum(p.numel() for p in model.parameters_wo_clip()) <-- what xcomp is this, where is pwoclip()? 
-
-## Data_Loader/...
 
 ## Get_Data.py
 - dataset:
@@ -350,124 +362,3 @@ args = train_args(base_cls=card.motion_abs_unet_adagn_xl)
     - traj_extra_weight: float=1.0, extra weight for what?
     - time_weighted_loss: bool=False, what does this do?
     - train_x0_as_eps: bool=False, what is x0 and what is eps?
-
-
-### benchmark-sparse issue: https://github.com/setarehc/diffusion-motion-inbetweening/issues/5#issuecomment-2197243178
-
-With `--edit_mode` set to `benchmark_sparse` and `transition_length` set to 5, keyframes are being defined every 5 frames.
-This creates a very strong keyframe condition that leaves little room for the text condition to influence the results.
-For optimal use of text conditioning, it's better to condition on specific joint trajectories. This way, you can control
-these joints while allowing the text prompt to guide the movements of the other, free joints.
-
-You can also increase the classifier-free sampling weight for text conditioning by setting `guidance_param` to values higher
-than 2.5 to increase the effect of text.
-
-## params
-
-- `--keyframe_guidance_param`: 1 but what else is possible
-- `--keyframe_selection_scheme`: `random_joints` but what else is possible
-
-### reading the edit_args JSON produced at inference time training
-
-    "adam_beta2": 0.999,
-
-{
-    "abs_3d": true,
-    "action_file": "",
-    "action_name": "",
-    "apply_zero_mask": false,
-    "arch": "unet",
-    "augment_type": "none",
-    "avg_model_beta": 0.9999,
-    "batch_size": 1,
-    "clip_range": 6.0,
-    "cond_mask_prob": 0.1,
-    "cuda": true,
-    "cutoff_point": 0,
-    "data_dir": "",
-    "dataset": "humanml",
-    "device": 0,
-    "diffusion_steps": 1000,
-    "dim_mults": [
-        2,
-        2,
-        2,
-        2
-    ],
-    "drop_redundant": false,
-    "edit_mode": "benchmark_sparse",
-    "editable_features": "pos_rot_vel",
-    "emb_trans_dec": false,
-    "eval_batch_size": 32,
-    "eval_during_training": false,
-    "eval_num_samples": 1000,
-    "eval_rep_times": 3,
-    "eval_split": "test",
-    "ff_size": 1024,
-    "grad_clip": 1.0,
-    "gradient_schedule": null,
-    "guidance_param": 2.5,
-    "imputate": false,
-    "input_text": "",
-    "keyframe_conditioned": true,
-    "keyframe_guidance_param": 1.0,
-    "keyframe_mask_prob": 0.1,
-    "keyframe_selection_scheme": "random_joints",
-    "lambda_fc": 0.0,
-    "lambda_rcxyz": 0.0,
-    "lambda_vel": 0.0,
-    "latent_dim": 512,
-    "layers": 8,
-    "log_interval": 1000,
-    "lr": 0.0001,
-    "lr_anneal_steps": 0,
-    "model_path": "./save/randomframes/model000750000.pt",
-    "motion_length": 11.2,
-    "motion_length_cut": 6.0,
-    "n_keyframes": 5,
-    "no_text": false,
-    "noise_schedule": "cosine",
-    "num_frames": 224,
-    "num_repetitions": 3,
-    "num_samples": 1,
-    "num_steps": 3000000,
-    "out_mult": false,
-    "output_dir": "",
-    "overwrite": false,
-    "predict_xstart": true,
-    "random_proj_scale": 10.0,
-    "reconstruction_guidance": false,
-    "reconstruction_weight": 5.0,
-    "replacement_distribution": "conditional",
-    "resume_checkpoint": "",
-    "save_dir": "save/snjua2bq",
-    "save_interval": 50000,
-    "seed": 10,
-    "sigma_small": true,
-    "std_scale_shift": [
-        1.0,
-        0.0
-    ],
-    "stop_imputation_at": 0,
-    "stop_recguidance_at": 0,
-    "text_condition": "",
-    "text_prompt": "roundhouse kick",
-    "time_weighted_loss": false,
-    "train_platform_type": "NoPlatform",
-    "train_x0_as_eps": false,
-    "traj_extra_weight": 1.0,
-    "traj_only": false,
-    "transition_length": 100,
-    "unconstrained": false,
-    "unet_adagn": true,
-    "unet_zero": true,
-    "use_ddim": false,
-    "use_fixed_dataset": false,
-    "use_fixed_subset": false,
-    "use_fp16": true,
-    "use_random_proj": false,
-    "weight_decay": 0.01,
-    "xz_only": false,
-    "zero_keyframe_loss": false
-}
-
