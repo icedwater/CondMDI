@@ -1297,16 +1297,6 @@ class HumanML3D(data.Dataset):
         return processed_data
 
 
-# A wrapper class for t2m original dataset for MDM purposes
-class KIT(HumanML3D):
-    def __init__(self,
-                 mode,
-                 datapath='./dataset/kit_opt.txt',
-                 split="train",
-                 **kwargs):
-        super(KIT, self).__init__(mode, datapath, split, **kwargs)
-
-
 def sample_to_motion(sample_abs, dataset, model):
     n_joints = 22
     # (bs, 263, 1, 120)

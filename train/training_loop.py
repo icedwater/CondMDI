@@ -105,37 +105,8 @@ class TrainLoop:
             self.schedule_sampler_type, diffusion)
         self.eval_wrapper, self.eval_data, self.eval_gt_data = None, None, None
         if args.dataset in ['kit', 'humanml'] and args.eval_during_training:
-            raise NotImplementedError()
-            mm_num_samples = 0  # mm is super slow hence we won't run it during training
-            mm_num_repeats = 0  # mm is super slow hence we won't run it during training
-            gen_loader = get_dataset_loader(name=args.dataset,
-                                            batch_size=args.eval_batch_size,
-                                            num_frames=None,
-                                            split=args.eval_split,
-                                            hml_mode='eval')
+            raise NotImplementedError() # check git history for previous eval_during_training code
 
-            self.eval_gt_data = get_dataset_loader(
-                name=args.dataset,
-                batch_size=args.eval_batch_size,
-                num_frames=None,
-                split=args.eval_split,
-                hml_mode='gt')
-            self.eval_wrapper = EvaluatorMDMWrapper(args.dataset,
-                                                    dist_util.dev())
-            self.eval_data = {
-                'test':
-                lambda: eval_humanml.get_mdm_loader(
-                    model,
-                    diffusion,
-                    args.eval_batch_size,
-                    gen_loader,
-                    mm_num_samples,
-                    mm_num_repeats,
-                    gen_loader.dataset.opt.max_motion_length,
-                    args.eval_num_samples,
-                    scale=1.,
-                )
-            }
         self.use_ddp = False
         self.ddp_model = self.model
 
