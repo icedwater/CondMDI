@@ -269,6 +269,10 @@ is 1) to above 2.5 as suggested [in this bug thread][sparse].
 
 ## Producing Output
 
+The result of the synthesis is a numpy array, `results.npy`, which contains the sequences.
+Each of these sequences can be converted into BVH format using the [joints2bvh][momjoints]
+script from the momask project, which other tools can convert to formats such as FBX.
+
 - can the existing scripts convert arbitrary J-joint rigs to the correct form? (no, need to fix)
 - will need to update momask joints2bvh: convert() to use nonstandard rig as well
 
