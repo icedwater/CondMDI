@@ -7,7 +7,9 @@ of the rig, and edit where the assumptions are made in the training script.
 
 This is the original workflow to obtain the HumanML3D dataset, summarized from the README there:
 
+
 ## Original Workflow for HumanML3D:
+
 1. Download the various datasets from [AMASS][amass] then unzip them into the `amass_data/` folder in
    the HumanML3D repository. Next, download `SMPL+H` models from [MANO][mano] and `DMPLS` models from
    the [SMPL][smpl] sites. Unzip these and put them in the `body_models/` folder. Each of these sites
@@ -101,6 +103,7 @@ In this case we are only handling conditional synthesis.
     - card inherits configs/data/dataset name ("humanml")
 
 The details of each step are highlighted below.
+
 
 ### Create a new data_loader class called `myrig`
 
