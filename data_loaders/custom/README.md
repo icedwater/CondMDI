@@ -1,5 +1,21 @@
 # Working with Custom Rigs
 
+This is the general workflow for training and inference on custom rigs:
+
+1. convert your input animations into BVH
+2. convert BVH into numpy arrays
+3. process the numpy arrays to get rot6d vectors with absolute-root values
+4. annotate the text describing the animations
+5. modify script parameters to include this custom rig
+6. train the system
+7. do the inference
+8. convert the output numpy arrays back to BVH
+
+The "HumanML3D" workflow does step 3, then 6 and 7.
+
+
+## Introduction
+
 The [Flexible Motion In-Betweening][condmdi] model is trained on the [HumanML3D dataset][hml3d_fork],
 originally by [Eric Guo][hml3d_orig], which is a combination of various motion-capture sequences, all
 using the SMPL+ 22-node data structure. In order to train on a custom rig, we must specify the joints
