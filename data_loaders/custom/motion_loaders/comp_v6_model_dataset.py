@@ -10,7 +10,7 @@ import os
 import copy
 from functools import partial
 
-from data.dataset import abs3d_to_rel, sample_to_motion
+from data_loaders.custom.data.dataset import abs3d_to_rel, sample_to_motion
 from scripts.motion_process import recover_from_ric
 from utils.metrics import calculate_skating_ratio
 from sample.gmd.condition import (cond_fn_key_location, get_target_from_kframes, get_target_and_inpt_from_kframes_batch,
