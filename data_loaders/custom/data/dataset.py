@@ -252,7 +252,7 @@ class Text2MotionDatasetV2(data.Dataset):
         self.max_length = 20
         self.pointer = 0
         self.max_motion_length = opt.max_motion_length
-        min_motion_len = 40 if self.opt.dataset_name == 't2m' else 24
+        min_motion_len = 5 if self.opt.dataset_name == 't2m' else 24
 
         self.use_rand_proj = use_rand_proj
         self.traject_only = traject_only
@@ -335,8 +335,8 @@ class Text2MotionDatasetV2(data.Dataset):
                     }
                     new_name_list.append(name)
                     length_list.append(len(motion))
-            except:
-                pass
+            except Exception as x:
+                print(f"====#{type(x)}: {x.args}#====")
 
         name_list, length_list = zip(
             *sorted(zip(new_name_list, length_list), key=lambda x: x[1]))
@@ -1031,26 +1031,24 @@ class TextOnlyDataset(data.Dataset):
             return torch.matmul(data, self.inv_proj_matrix_th.to(data.device))
         return np.matmul(data, self.inv_proj_matrix)
 
-
-# A wrapper class for t2m original dataset for MDM purposes
-class HumanML3D(data.Dataset):
+class CustomRig(data.Dataset):
     def __init__(self,
                  mode,
-                 datapath='./dataset/humanml_opt.txt',
-                 split="train",
-                 use_abs3d=False,
+                 datapath="./dataset/humanml_opt.txt",  ## FIXME: figure out what settings are needed
+                 split="train",                         ## FIXME: why is it train here, for t2m right
+                 use_abs3d=False,                       ## FIXME: do we need to set this if we are only using abs3d anyway
                  traject_only=False,
                  use_random_projection=False,
                  random_projection_scale=None,
-                 augment_type='none',
+                 augment_type="none",
                  std_scale_shift=(1., 0.),
                  drop_redundant=False,
                  num_frames=None,
                  **kwargs):
         self.mode = mode
 
-        self.dataset_name = 't2m'
-        self.dataname = 't2m'
+        self.dataset_name = "t2m"
+        self.dataname = "t2m"
 
         # Configurations of T2M dataset and KIT dataset is almost the same
         abs_base_path = '.'
@@ -1058,7 +1056,6 @@ class HumanML3D(data.Dataset):
         device = None  # torch.device('cuda:4') # This param is not in use in this context
         # TODO: modernize get_opt
         opt = get_opt(dataset_opt_path, device, mode, use_abs3d=use_abs3d, max_motion_length=num_frames)
-        opt.meta_dir = pjoin(abs_base_path, opt.meta_dir)
         opt.motion_dir = pjoin(abs_base_path, opt.motion_dir)
         opt.text_dir = pjoin(abs_base_path, opt.text_dir)
         opt.model_dir = pjoin(abs_base_path, opt.model_dir)
@@ -1090,7 +1087,7 @@ class HumanML3D(data.Dataset):
             proj_matrix_dir = None
 
         ###
-        print("mode =", mode)
+        print(f">>> (INFO) >>> mode = {mode}")
 
         if self.absolute_3d:
             # If mode is 'gt' or 'eval', we will load the *original* dataset. Not the absolute rot, x, z.
@@ -1141,6 +1138,7 @@ class HumanML3D(data.Dataset):
                 pjoin(opt.meta_dir, f'{opt.dataset_name}_std.npy'))
 
         self.split_file = pjoin(opt.data_root, f'{split}.txt')
+
         if mode == 'text_only':
             assert self.random_proj_scale == 10, 'mode text only support only random projection scale 10'
             print(
@@ -1187,9 +1185,9 @@ class HumanML3D(data.Dataset):
                                           'in the README file.'
 
         # Load necessay variables for converting raw motion to processed data
-        data_dir = './dataset/000021.npy'
-        self.n_raw_offsets = torch.from_numpy(t2m_raw_offsets)
-        self.kinematic_chain = t2m_kinematic_chain
+        data_dir = './dataset/000021.npy'                           ## FIXME: need to know how to reverse-engineer this, currently just using old rig data
+        self.n_raw_offsets = torch.from_numpy(custom_raw_offsets)
+        self.kinematic_chain = custom_kinematic_chain
         # Get offsets of target skeleton
         example_data = np.load(data_dir)
         example_data = example_data.reshape(len(example_data), -1, 3)
@@ -1207,9 +1205,9 @@ class HumanML3D(data.Dataset):
     def motion_to_rel_data(self, motion, model):
         motion_bu = motion.detach().clone()
         # Right/Left foot
-        fid_r, fid_l = [8, 11], [7, 10]
+        fid_r, fid_l = [9, 10], [4, 5]
         # Face direction, r_hip, l_hip, sdr_r, sdr_l
-        face_joint_indx = [2, 1, 17, 16]
+        face_joint_indx = [6, 1, 23, 18]
         sample_rel_np_list = []
         for ii in range(len(motion)):
             # Data need to be [120 (timestep), 22, 3] to get feature
@@ -1230,32 +1228,6 @@ class HumanML3D(data.Dataset):
 
         processed_data = torch.cat(sample_rel_np_list, axis=0)
 
-        # NOTE: check if the sequence is still that same after extract_features and converting back
-        # sample = dataset.t2m_dataset.inv_transform(sample_abs.cpu().permute(0, 2, 3, 1)).float()
-        # sample_after = (processed_data.permute(0, 2, 3, 1) * self.std_rel) + self.mean_rel
-        # n_joints = 22
-        # sample_after = recover_from_ric(sample_after, n_joints, abs_3d=False)
-        # sample_after = sample_after.view(-1, *sample_after.shape[2:]).permute(0, 2, 3, 1)
-
-        # rot2xyz_pose_rep = 'xyz'
-        # rot2xyz_mask = None
-        # sample_after = model.rot2xyz(x=sample_after,
-        #                     mask=rot2xyz_mask,
-        #                     pose_rep=rot2xyz_pose_rep,
-        #                     glob=True,
-        #                     translation=True,
-        #                     jointstype='smpl',
-        #                     vertstrans=True,
-        #                     betas=None,
-        #                     beta=0,
-        #                     glob_rot=None,
-        #                     get_rotations_back=False)
-
-        # from data_loaders.custom.utils.plot_script import plot_3d_motion
-        # plot_3d_motion("./test_positions_1.mp4", self.kinematic_chain, motion[2].permute(2,0,1).detach().cpu().numpy(), 'title', 'humanml', fps=20)
-        # plot_3d_motion("./test_positions_1_after.mp4", self.kinematic_chain, sample_after[2].permute(2,0,1).detach().cpu().numpy(), 'title', 'humanml', fps=20)
-
-        # Return data already normalized with relative mean and std. shape [bs, 263, 1, 120(motion step)]
         return processed_data
 
 
@@ -1266,9 +1238,9 @@ class HumanML3D(data.Dataset):
         """
         motion_bu = motion.detach().clone() # [bs, 22, 3, 196]
         # Right/Left foot
-        fid_r, fid_l = [8, 11], [7, 10]
+        fid_r, fid_l = [9, 10], [4, 5]
         # Face direction, r_hip, l_hip, sdr_r, sdr_l
-        face_joint_indx = [2, 1, 17, 16]
+        face_joint_indx = [6, 1, 23, 18]
         sample_abs_np_list = []
         for ii in range(len(motion)):
             # Data need to be [120 (timestep), 22, 3] to get feature
@@ -1298,8 +1270,8 @@ class HumanML3D(data.Dataset):
 
 
 def sample_to_motion(sample_abs, dataset, model):
-    n_joints = 22
-    # (bs, 263, 1, 120)
+    n_joints = 27
+    # (bs, 12 * n_joints - 1, 1, 120)
     # In case of random projection, this already includes undoing the random projection
     sample = dataset.t2m_dataset.inv_transform(sample_abs.cpu().permute(
         0, 2, 3, 1)).float()
@@ -1327,7 +1299,7 @@ def abs3d_to_rel(sample_abs, dataset, model):
     '''We want to change the first 3 values from absolute to relative
     sample_abs shape [bs, 263, 1, 196]
     '''
-    n_joints = 22
+    n_joints = 27
     # (bs, 263, 1, 120)
     # In case of random projection, this already includes undoing the random projection
     sample = dataset.t2m_dataset.inv_transform(sample_abs.cpu().permute(
@@ -1369,7 +1341,7 @@ def rel_to_abs3d(sample_rel, dataset, model):
     Returns:
         sample_abs (torch.tensor): shape [bs, 263, 1, 196]
     """
-    n_joints = 22
+    n_joints = 27
 
     sample = dataset.t2m_dataset.inv_transform(sample_rel.cpu().permute(0, 2, 3, 1)).float()
 

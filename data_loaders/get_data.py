@@ -22,8 +22,8 @@ def get_dataset_class(name):
         from data_loaders.humanml.data.dataset import KIT
         return KIT
     elif name == "custom":
-        print(f">>> (DEBUG) >>> This is a template class: {name} ...")
-        from data_loaders.humanml.data.dataset import HumanML3D as custom     ## FIXME: only until custom class is defined properly
+        print(f">>> (DEBUG) >>> Attempting to use {name} ...")
+        from data_loaders.custom.data.dataset import CustomRig as custom
         return custom
     else:
         raise ValueError(f'Unsupported dataset name [{name}]')
