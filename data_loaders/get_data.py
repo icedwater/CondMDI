@@ -38,7 +38,7 @@ def get_collate_fn(name, hml_mode='train'):
     elif name == 'amass':
         return amass_collate
     elif name == "custom":
-        print("running custom dataset")
+        print(f">>> (DEBUG) >>> Using t2m_collate for the {name} dataset")
         return t2m_collate
     else:
         return all_collate
