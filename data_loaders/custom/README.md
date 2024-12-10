@@ -91,11 +91,14 @@ This is a summary of the steps to train on a custom rig called "myrig":
 1. Copy the `data_loaders/custom` directory to `data_loaders/myrig`.
 2. Update the dataset info for `myrig` in `data_loaders/myrig/data/dataset.py`.
 3. Update `data_loaders/get_data.py`.
-4. Update `utils/model_util.py`.
-5. Update `utils/paramUtil.py`.
-6. Update `model/mdm_unet.py`.
-7. Update `utils/get_opt`.
-8. Now the training can be performed, e.g. to train for 1 million steps with a checkpoint every
+4. Update `data_loaders/myrig_utils.py`.
+5. Update `utils/model_util.py`.
+6. Update `utils/paramUtil.py`.
+7. Update `utils/editing_util.py`.
+8. Update `model/mdm_unet.py`.
+9. Update `utils/get_opt`.
+10. (Optional) Customize the training options in `configs/card.py`.
+11. Now the training can be performed, e.g. to train for 1 million steps with a checkpoint every
    200K steps, run the following command:
 
 ```bash
@@ -108,15 +111,7 @@ python -m train.train_condmdi --dataset myrig --save_interval 200_000 --num_step
 In this case we are only handling conditional synthesis.
 
 1. Update `sample/conditional_synthesis.py`.
-- `scripts/motion_process.py`
-  - update coords of lower leg joints, feet, facing vectors, upper legs and joints_num
-    - l_idx1, l_idx2 are joints below the hip on the same leg (5 and 8 for t2m)
-    - fid_r, fid_l are joint pairs at the end of the leg ([8, 11] and [7, 10] for t2m)
-    - face_joint_indx is a Z formed from right hip, left hip, right upper arm, left upper arm ([2, 1, 17, 16] for t2m)
 
--- train_condmdi::main()
-  - train_args(base_cls=card.motion_abs_unet_adagn_xl) <-- overwrite card here? or just leave it
-    - card inherits configs/data/dataset name ("humanml")
 
 The details of each step are highlighted below.
 
@@ -134,8 +129,8 @@ This file contains the specific settings for this rig.
     - /dataset/humanml_opt.txt is loaded as `opt` and `self.opt` within subclass
   - import necessary dependencies (ignore t2m?)
   - Text2MotionDatasetV2 and TextOnlyDataset depend on `--joints_num`, include that
-  - train t2m for custom rig here
-    - min_motion_len = 40 for t2m, else 24 (sequences below 24/40 frames are skipped)
+  - train t2m for custom rig here (make sure your training data is longer than `min_motion_len`)
+    - min_motion_len = 5 for t2m, else 24 (sequences below 5 frames are skipped)
   - update the feet and facing joints in `motion_to_rel_data` and `motion_to_abs_data`
     - start and end joints of left foot and right foot
     - facing joints are Z-shape: right hip, left hip, right shoulder, left shoulder
@@ -153,7 +148,36 @@ This means a new class called `myrig` needs to be built based on the default `Hu
 We can use `CustomRig` as a template. Once that is done, import it in `get_dataset_class`.
 
 
+### Update `scripts/motion_process.py`
+
+Some convenience values are hardcoded at the top of this file. In future, we should import them
+from `utils/paramUtil.py` directly, but refactoring will not be done just yet.
+
+These are the leg joints `l_idx1` and `l_idx2` (which may be the same as hip joints `r_hip` and
+`l_hip`), the right foot and left foot arrays `fid_r` and `fid_l`, the face joints vector which
+is a 'Z' traced from the right hip to the left hip, to the right upper arm, then the left upper
+arm, `face_joint_indx`, and `joints_num` the number of joints in the rig.
+
+Also check that `custom_raw_offsets` and `custom_kinematic_chain` from `paramUtils` are used in
+`process_file`. This function uses `data_dir` to generate `global_positions`, but retaining its
+original value of `./dataset/000021.npy` somehow still allows custom rig training.
+
+`recover_rot` hardcodes `joints_num` for HumanML3D and KIT only, but this function is currently
+not in use and may be removed in the future. The same applies to the `main()` block which tries
+to process KIT data.
+
+
+### Update `data_loaders/myrig_utils.py`
+The training process also requires some utilities that are currently only defined for HumanML3D
+and AMASS classes. Make sure `data_loaders/myrig_utils.py` exists and has the updated values.
+
+Here, the matrices for `myrig` are initialized to the same shape as the computed joint vectors,
+so that they can be imported into `utils/editing_util.py` for `joint_to_full_mask_custom`.
+
+
 ### Update `utils/model_util.py`
+
+Make sure `myrig` is imported and included in the list of `Datasets`.
 
 Both training and inference require the `create_model_and_diffusion` function, so updating this
 will help both sides of the process. Since we are just reusing the UNET architecture which they
@@ -199,6 +223,15 @@ Include the above structures in `paramUtil.py` for the [HumanML3D][hml3d_fork] s
 the custom `myrig` can be preprocessed with the `build_vectors.py`.
 
 
+### Update `utils/editing_util.py`
+
+Make sure that the `from data_loaders` import line includes `myrig_utils`.
+
+Then update the `joint_to_full_mask_custom` function with the correct import name. Ideally, the
+`joint_to_full_mask` function should be refactored to take the rig type as an argument, but for
+now we use a separate function.
+
+
 ### Update `model/mdm_unet.py`
 
 Here, we have to manually add the details of `myrig` into the `MDM_UNET` class in a few places.
@@ -221,15 +254,35 @@ and the corresponding number of `njoints` to the if/elif block for keyframe cond
 
 The `get_opt()` function is used to read in training arguments from `./dataset/humanml_opt.txt`
 which we can reuse. Note that `dataset_name` is set to `t2m` here and `max_text_len` is 20. The
-`data_root` and `data_dir` options should be pointing to the trained vector and text data. Make
-sure that `joints_num` and `dim_pose` are correctly defined. `dim_pose` should be computed from
+`data_root` and `data_dir` options should be pointing to the trained vector data. Make sure the
+values of `joints_num` and `dim_pose` are correctly defined. `dim_pose` should be computed from
 the number of joints J to be (12\*J - 1). J is now read from `humanml_opt.txt`.
 
-(...)
+After running `annotate_texts.py`, point `text_dir` to the directory with the processed texts.
 
-- get_dataset_class
-- get_dataset
-- get_collate_fn
+
+### (Optional) Customize the training options in `configs/card.py`.
+
+If you need to permanently change some training options, you can create a new dataclass card in
+`configs/card.py` subclassing the default data and model settings and giving the updated values
+there, for instance to set `batch_size` to 2:
+
+```python
+@dataclass
+class motion_abs_unet_adagn_xl_custom_batch(    # this class name should go to train_args()
+    data.humanml_motion_abs,      # this is the current default for absolute motion data
+    model.motion_unet_adagn_xl,   # this is the current default unet training setting
+):
+    batch_size: int = 2         ## change the batch size here
+```
+`utils/parser_util.py` contains all the options you can override this way.
+
+Use the class name in `train_args(base_cls=$CARD_NAME)` before you run `train/train_condmdi.py`
+if you use this method. To change settings one-off, just use command line options instead:
+
+```bash
+python -m train.train_condmdi --dataset myrig [... as above ...] --batch_size 2
+```
 
 
 ## Using the trained custom model for inference
@@ -282,27 +335,6 @@ script from the momask project, which other tools can convert to formats such as
 
 # Working Notes to Explore
 
-## Current training output
-
-- creating data loader...
-  - data <== get_dataset_loader(data_conf)
-  - data_conf <== DatasetConfig(dataset="humanml", batch_size=64, num_frames=60*, abs_3d=False, traj_only=False, use_random_proj=False, random_proj_scale=10.0, augment_type="none", std_scale_shift=(1.0, 0.0), drop_redundant=False)
-
-- text-to-motion part
-  - Loading dataset t2m ... / mode = train
-  - t2m dataset aug: none std_scale_shift: (1.0, 0.0) drop redundant information: False (...23384?)
-    - Pointer Pointing at 0 (from inside reset_max_len)
-- creating model and diffusion...
-  - model, diffusion = cmd(args, data)
-    - by default unets are used in training
-    - diffusion = create_gaussian_diffusion(args)
-- using UNET with lantent dim: 512 and mults: (2, 2, 2, 2)
-- dims: [263, 1024, 1024, 1024, 1024] mults: (2, 2, 2, 2)
-- [ models/temporal ] Channel dimensions: [(263, 1024), (1024, 1024), (1024, 1024), (1024, 1024)]
-- EMBED TEXT
-- Loading CLIP...
-- Total params: 235.12M (doesn't seem to change)
-  - sum(p.numel() for p in model.parameters_wo_clip()) <-- what xcomp is this, where is pwoclip()? 
 
 ## Get_Data.py
 - dataset:
