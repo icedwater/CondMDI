@@ -639,7 +639,7 @@ class MDM_UNET(nn.Module):
             elif self.dataset == 'amass':
                 added_channels = 764
             elif self.dataset == "custom":
-                added_channels = 263    ## FIXME: find joints_num if possible, 12 * (joints_num - 1)
+                added_channels = 323    ## FIXME: find joints_num if possible, 12 * (joints_num - 1)
         else:
             added_channels = 0
         self.input_feats = 2 if xz_only else self.njoints * self.nfeats
@@ -837,7 +837,7 @@ class MDM_UNET(nn.Module):
             if self.dataset == "humanml":
                 njoints = 263
             elif self.dataset == "custom":
-                njoints = 263 # FIXME: set to (27 * 12 - 1) once input processing is corrected
+                njoints = 323 # FIXME: set to (27 * 12 - 1) once input processing is corrected
             else:
                 njoints = 764
         x = x.reshape(nframes, bs, njoints, nfeats)
