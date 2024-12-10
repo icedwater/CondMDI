@@ -11,14 +11,14 @@ from tqdm import tqdm
 
 
 # Lower legs
-l_idx1, l_idx2 = 5, 8
+l_idx1, l_idx2 = 6, 1
 # Right/Left foot
-fid_r, fid_l = [8, 11], [7, 10]
+fid_r, fid_l = [9, 10], [4, 5]
 # Face direction, r_hip, l_hip, sdr_r, sdr_l
-face_joint_indx = [2, 1, 17, 16]
+face_joint_indx = [6, 1, 23, 18]
 # l_hip, r_hip
-r_hip, l_hip = 2, 1
-joints_num = 22
+r_hip, l_hip = 6, 1
+joints_num = 27         ## NOTE: we only define it manually here because get_opt is not used
 
 # positions (batch, joints_num, 3)
 def uniform_skeleton(positions, target_offset, n_raw_offsets, kinematic_chain):
@@ -196,11 +196,9 @@ def process_file(positions, feet_thre):
     # zeros tgt_offsets for testing
     # tgt_offsets = torch.zeros([positions.shape[-2], 3])
     # Test
-    data_dir = '../dataset/pose_data_raw/joints/'
     data_dir = './dataset/000021.npy'
-    example_id = "000021"
-    n_raw_offsets = torch.from_numpy(t2m_raw_offsets)
-    kinematic_chain = t2m_kinematic_chain
+    n_raw_offsets = torch.from_numpy(custom_raw_offsets)
+    kinematic_chain = custom_kinematic_chain
 
     # Get offsets of target skeleton
     example_data = np.load(data_dir)  # os.path.join(data_dir, example_id + '.npy'))
