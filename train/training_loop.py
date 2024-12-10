@@ -15,7 +15,7 @@ from diffusion.fp16_util import MixedPrecisionTrainer
 from diffusion.resample import LossAwareSampler, UniformSampler
 from tqdm import tqdm
 from diffusion.resample import create_named_schedule_sampler
-from data_loaders.humanml.networks.evaluator_wrapper import EvaluatorMDMWrapper
+# from data_loaders.humanml.networks.evaluator_wrapper import EvaluatorMDMWrapper
 from eval import eval_humanml, eval_humanact12_uestc
 from data_loaders.get_data import get_dataset_loader
 from torch.cuda import amp
@@ -61,7 +61,10 @@ class TrainLoop:
         self.resume_step = 0
         self.global_batch = self.batch_size  # * dist.get_world_size()
         self.num_steps = args.num_steps
-        self.num_epochs = self.num_steps // len(self.data) + 1
+        try:
+            self.num_epochs = self.num_steps // len(self.data) + 1
+        except ZeroDivisionError:
+            print(f"We have {len(self.data)} data ... over {self.num_steps} steps?")
 
         self.sync_cuda = torch.cuda.is_available()
 
