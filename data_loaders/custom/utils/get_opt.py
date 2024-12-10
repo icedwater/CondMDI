@@ -55,20 +55,15 @@ def get_opt(opt_path, device, mode, max_motion_length, use_abs3d=False):
     opt.meta_dir = pjoin(opt.save_root, 'meta')
 
     if opt.dataset_name == 't2m':
-        opt.data_root = './dataset/HumanML3D'
-        # Set directory based on type of dataset representation:
-        # Will load the original dataset (relative) if in 'eval' or 'gt' mode
-        data_dir = 'new_joint_vecs_abs_3d' if use_abs3d and mode not in ['eval', 'gt'] else 'new_joint_vecs'
-        if "DATA_ROOT" in os.environ:
-            local_data_root = pjoin(os.environ["DATA_ROOT"], opt.data_root)
-            opt.motion_dir = pjoin(local_data_root, data_dir)
-            opt.text_dir = pjoin(local_data_root, 'texts')
-        else:
-            opt.motion_dir = pjoin(opt.data_root, data_dir)
-            opt.text_dir = pjoin(opt.data_root, 'texts')
+        opt.data_root = './dataset/Custom'      ## FIXME: Make sure this matches class name
+        data_dir = 'new_joint_vecs'
+        text_dir = 'texts'
+        opt.motion_dir = pjoin(opt.data_root, data_dir)
+        opt.text_dir = pjoin(opt.data_root, text_dir)
 
-        opt.joints_num = 22
-        opt.dim_pose = 263
+
+        ## Compute dim_pose based on joints_num supplied in humanml_opt.txt
+        opt.dim_pose = 12 * opt.joints_num - 1
         # NOTE: UNET needs to uses multiples of 16
         opt.max_motion_length = max_motion_length
         print(f'WARNING: max_motion_length is set to {max_motion_length}')
